@@ -32,7 +32,8 @@ const IDP_PATHS = {
   METADATA: '/metadata',
   SIGN_IN: '/signin',
   SIGN_OUT: '/signout',
-  SETTINGS: '/settings'
+  SETTINGS: '/settings',
+  FAIL: '/fail'
 }
 
 const cryptTypes           = {
@@ -266,6 +267,25 @@ function processArgs(args, options) {
             return fs.readFileSync(filePath, 'utf8')
           }
         }
+      },
+      errorStatusCode: {
+        description: 'Status Code for SAML error response',
+        required: false,
+        string: true,
+        default: 'urn:oasis:names:tc:SAML:2.0:status:Responder',
+        alias: 'esc'
+      },
+      errorDetailStatusCode: {
+        description: 'Detail Status Code for SAML error response',
+        required: false,
+        string: true,
+        alias: 'edsc'
+      },
+      errorStatusMessage: {
+        description: 'Status Message for SAML error response',
+        required: false,
+        string: true,
+        alias: 'esm'
       }
     })
     .example('\t$0 --acs http://acme.okta.com/auth/saml20/exampleidp --aud https://www.okta.com/saml2/service-provider/spf5aFRRXFGIMAYXQPNV', '')
@@ -318,6 +338,9 @@ function _runServer(argv) {
   console.log('Encrypt Assertion:\n\t' + argv.encryptAssertion);
   console.log('Authentication Context Class Reference:\n\t' + argv.authnContextClassRef);
   console.log('Authentication Context Declaration:\n\n' + argv.authnContextDecl);
+  console.log('Error Status Code:\n\t' + argv.errorStatusCode);
+  console.log('Error Detail Status Code:\n\t' + argv.errorDetailStatusCode);
+  console.log('Error Status Message:\n\n' + argv.errorStatusMessage);
   console.log('Default RelayState:\n\t' + argv.relayState);
   console.log();
   console.log('[SP]');
@@ -361,6 +384,11 @@ function _runServer(argv) {
     lifetimeInSeconds:      3600,
     authnContextClassRef:   argv.authnContextClassRef,
     authnContextDecl:       argv.authnContextDecl,
+    error:                  {
+                              code: argv.errorStatusCode,
+                              detailStatusCode: argv.errorDetailStatusCode,
+                              description: argv.errorStatusMessage
+                            },
     includeAttributeNameFormat: true,
     profileMapper:          SimpleProfileMapper,
     postEndpointPath:       IDP_PATHS.SSO,
@@ -696,6 +724,35 @@ function _runServer(argv) {
 
     console.log('Updated IdP Configuration => \n', req.idp.options);
     res.redirect('/');
+  });
+
+  app.post(IDP_PATHS.FAIL, function(req, res) {
+    const authOptions = extend({}, req.idp.options);
+    authOptions.getPostURL = function (req, callback) {
+      return callback(null, (req.authnRequest && req.authnRequest.acsUrl) ? req.authnRequest.acsUrl : argv.acsUrl);
+    };
+    Object.keys(req.body).forEach(function(key) {
+      var buffer;
+      if (key === '_authnRequest') {
+        buffer = new Buffer(req.body[key], 'base64');
+        req.authnRequest = JSON.parse(buffer.toString('utf8'));
+
+        // Apply AuthnRequest Params
+        authOptions.inResponseTo = req.authnRequest.id;
+        if (req.idp.options.allowRequestAcsUrl && req.authnRequest.acsUrl) {
+          authOptions.acsUrl = req.authnRequest.acsUrl;
+          authOptions.recipient = req.authnRequest.acsUrl;
+          authOptions.destination = req.authnRequest.acsUrl;
+          authOptions.forceAuthn = req.authnRequest.forceAuthn;
+        }
+        if (req.authnRequest.relayState) {
+          authOptions.RelayState = req.authnRequest.relayState;
+        }
+      }
+    });
+
+    console.log('Sending SAML Failure Response\nOptions => \n', authOptions);
+    samlp.sendError(authOptions)(req, res);
   });
 
   // catch 404 and forward to error handler

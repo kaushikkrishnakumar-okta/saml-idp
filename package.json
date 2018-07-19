@@ -35,7 +35,7 @@
     "extend": "^3.0.1",
     "hbs": "~4.0.1",
     "morgan": "~1.9.0",
-    "samlp": "mcguinness/node-samlp",
+    "samlp": "github:yuliu-okta/node-samlp#1eeb7e0d5d3951f3172b700040186af5907f6dd2",
     "xml-formatter": "^1.0.1",
     "xmldom": "^0.1.27",
     "yargs": "^11.0.0"

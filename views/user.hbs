@@ -63,7 +63,7 @@
       <h3 class="panel-title"><i class="fa fa-code"><span>SAML Assertion</span></i></h3>
     </div>
     <div class="panel-body">
-      <form action="{{paths.SIGN_IN}}" class="form-horizontal form-profile" method="post" role="form">
+      <form action="{{paths.SIGN_IN}}" class="form-horizontal form-profile" method="post" role="form" id="signInForm">
         <div class='form-profile-attributes'>
           <div class="panel panel-default">
             <div class="panel-heading">
@@ -180,6 +180,7 @@
             <div class="col-md-12 text-right">
               <button id="btn-show-attribute-modal" class="btn btn-default input-xlarge"><i class="fa fa-plus-circle"><span>Add attribute</span></i></button>
               <button id="btn-sign-out" class="btn btn-default input-xlarge"><i class="fa fa-sign-out"><span>Sign out</span></i></button>
+              {{#if authnRequest.id}} <button id="btn-failure" class="btn btn-default input-xlarge"><i class="fa fa-sign-out"><span>Fail</span></i></button> {{/if}}
               <button id="btn-sign-in" class="btn btn-primary input-xlarge" type="submit"><i class="fa fa-sign-in"><span>Sign in</span></i></button>
             </div>
           </div>{{#if authnRequest.id}} <input name="_authnRequest" type='hidden' value='{{serialize authnRequest}}'> {{/if}}
@@ -247,6 +248,13 @@ $(document).ready(function() {
   $('#btn-sign-out').click(function(e) {
     e.preventDefault();
     window.location.href = '{{paths.SIGN_OUT}}';
+  });
+
+  $('#btn-failure').click(function(e) {
+    e.preventDefault();
+    form = document.getElementById('signInForm');
+    form.action = '{{paths.FAIL}}';
+    form.submit();
   });
 
    $('#modal-attribute .btn-primary').click(function(e) {
