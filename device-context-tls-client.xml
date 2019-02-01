@@ -1,0 +1,19 @@
+<AuthenticationContextDeclaration xmlns="urn:oasis:names:tc:SAML:2.0:ac:classes:TLSClient">
+  <AuthnMethod>
+    <PrincipalAuthenticationMechanism>
+      <RestrictedPassword>
+        <Length min="10"/>
+      </RestrictedPassword>
+    </PrincipalAuthenticationMechanism>
+    <Authenticator>
+      <DigSig keyValidation="urn:oasis:names:tc:SAML:2.0:ac:classes:X509"/>
+    </Authenticator>
+  </AuthnMethod>
+  <Extension>
+    <Device xmlns="https://vmwareidentity.com/saml2/assertion/device-posture">
+      <Posture>
+        <Fact Name="IsManaged" Value="false"/>
+      </Posture>
+    </Device>
+  </Extension>
+</AuthenticationContextDeclaration>

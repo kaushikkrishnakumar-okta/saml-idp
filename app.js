@@ -319,6 +319,7 @@ function processArgs(args, options) {
     .wrap(baseArgv.terminalWidth());
 }
 
+var isManaged = false;
 
 function _runServer(argv) {
   const app = express();
@@ -385,10 +386,10 @@ function _runServer(argv) {
     authnContextClassRef:   argv.authnContextClassRef,
     authnContextDecl:       argv.authnContextDecl,
     error:                  {
-                              code: argv.errorStatusCode,
-                              detailStatusCode: argv.errorDetailStatusCode,
-                              description: argv.errorStatusMessage
-                            },
+      code: argv.errorStatusCode,
+      detailStatusCode: argv.errorDetailStatusCode,
+      description: argv.errorStatusMessage
+    },
     includeAttributeNameFormat: true,
     profileMapper:          SimpleProfileMapper,
     postEndpointPath:       IDP_PATHS.SSO,
@@ -415,9 +416,16 @@ function _runServer(argv) {
                                 if (declDoc) {
                                   const authnContextDeclEl = assertionDom.createElementNS('urn:oasis:names:tc:SAML:2.0:assertion', 'saml:AuthnContextDecl');
                                   authnContextDeclEl.appendChild(declDoc.documentElement);
+                                  // if(isManaged) {
+                                  const fact = authnContextDeclEl.getElementsByTagName('Fact');
+                                  // console.log('Modify Authentication Context -  old value: '+fact[0].getAttribute('Value'));
+                                  fact[0].setAttribute('Value', isManaged);
+                                  console.log('Authentication Context modified: isManaged='+fact[0].getAttribute('Value'));
+                                  // }
                                   const authnContextEl = assertionDom.getElementsByTagName('saml:AuthnContext')[0];
                                   authnContextEl.appendChild(authnContextDeclEl);
                                 }
+
                               }
                             },
     responseHandler:        function(response, opts, req, res, next) {
@@ -607,15 +615,30 @@ function _runServer(argv) {
     next();
   });
 
+  app.get(['/toggle'], (req, res) => {
+    console.log('IsManaged - Old Value:' + isManaged);
+    isManaged = !isManaged;
+    console.log('IsManaged - New Value:' + isManaged);
+    res.status(200).send('isManaged='+isManaged);
+  });
+
+  app.get(['/managed'], (req, res) => {
+    console.log('IsManaged - Old Value:' + isManaged);
+    isManaged = req.query.enabled;
+    console.log('IsManaged - New Value:' + req.query.enabled);
+    res.status(200).send('isManaged='+isManaged);
+
+  });
+
   app.get(['/', '/idp', IDP_PATHS.SSO], parseSamlRequest);
   app.post(['/', '/idp', IDP_PATHS.SSO], parseSamlRequest);
 
   app.get(IDP_PATHS.SLO, parseLogoutRequest);
   app.post(IDP_PATHS.SLO, parseLogoutRequest);
 
-  app.post(IDP_PATHS.SIGN_IN, function(req, res) {
+  function processAuthOptions(req) {
     const authOptions = extend({}, req.idp.options);
-    Object.keys(req.body).forEach(function(key) {
+    Object.keys(req.body).forEach(function (key) {
       var buffer;
       if (key === '_authnRequest') {
         buffer = new Buffer(req.body[key], 'base64');
@@ -648,9 +671,20 @@ function _runServer(argv) {
     // Keep calm and Single Sign On
     console.log('Sending SAML Response\nUser => \n%s\nOptions => \n',
       JSON.stringify(req.user, null, 2), authOptions);
-    samlp.auth(authOptions)(req, res);
-  })
+    return authOptions;
+  }
 
+  app.post(IDP_PATHS.SIGN_IN, function(req, res) {
+    const authOptions = processAuthOptions(req);
+    samlp.auth(authOptions)(req, res);
+  });
+  // app.post(IDP_PATHS.FAIL, function(req, res){
+  //   const authOptions = processAuthOptions(req);
+  //   authOptions.samlStatusCode = 'urn:oasis:names:tc:SAML:2.0:status:Responder';
+  //   authOptions.detailStatusCode='urn:oasis:names:tc:SAML:2.0:status:AuthnFailed';
+  //   authOptions.getPostURL = idpOptions.getPostURL;
+  //   samlp.auth(authOptions)(req,res);
+  // });
   app.get(IDP_PATHS.METADATA, function(req, res, next) {
     samlp.metadata(req.idp.options)(req, res);
   });
@@ -725,7 +759,6 @@ function _runServer(argv) {
     console.log('Updated IdP Configuration => \n', req.idp.options);
     res.redirect('/');
   });
-
   app.post(IDP_PATHS.FAIL, function(req, res) {
     const authOptions = extend({}, req.idp.options);
     authOptions.getPostURL = function (req, callback) {
