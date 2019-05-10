@@ -159,7 +159,7 @@ function processArgs(args, options) {
       },
       acsUrl: {
         description: 'SP Assertion Consumer URL',
-        required: true,
+        required: false,
         alias: 'acs'
       },
       sloUrl: {
@@ -169,7 +169,7 @@ function processArgs(args, options) {
       },
       audience: {
         description: 'SP Audience URI',
-        required: true,
+        required: false,
         alias: 'aud'
       },
       serviceProviderId: {
@@ -401,6 +401,9 @@ function _runServer(argv) {
                             } : {},
     getUserFromRequest:     function(req) { return req.user; },
     getPostURL:             function (audience, authnRequestDom, req, callback) {
+                              if(!audience) {
+                                audience = req.authnRequest.issuer;
+                              }
                               return callback(null, (req.authnRequest && req.authnRequest.acsUrl) ?
                                 req.authnRequest.acsUrl :
                                 argv.acsUrl);
@@ -646,6 +649,7 @@ function _runServer(argv) {
 
         // Apply AuthnRequest Params
         authOptions.inResponseTo = req.authnRequest.id;
+        authOptions.audience = req.authnRequest.issuer;
         if (req.idp.options.allowRequestAcsUrl && req.authnRequest.acsUrl) {
           authOptions.acsUrl = req.authnRequest.acsUrl;
           authOptions.recipient = req.authnRequest.acsUrl;

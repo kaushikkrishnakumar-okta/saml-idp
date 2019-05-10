@@ -1,0 +1,21 @@
+{
+  "orgs": [
+    {
+      "name": "ok1",
+      "acsUrl": "https://kk1.okta1.com:80/sso/saml2/0oa1urc3UWZ7yWyhn0g4",
+      "audience": "https://www.okta.com/saml2/service-provider/spcxivqckyvaxnykmrlh"
+    }
+  ],
+  "acd": "device-context-tls-client.xml",
+  "acr": "urn:oasis:names:tc:SAML:2.0:ac:classes:TLSClient",
+  "httpsPrivateKey": "/usr/local/etc/httpd/ssl/star.okta1.com.key",
+  "httpsCert": "/usr/local/etc/httpd/ssl/star.okta1.com.crt",
+  "errorStatusCode": "urn:oasis:names:tc:SAML:2.0:status:Responder",
+  "errorDetailStatusCode": "urn:oasis:names:tc:SAML:2.0:status:AuthnFailed",
+  "config": {
+    "metadata": {}
+  },
+  "port": 7000,
+  "configFile": "./config.js",
+  "https": true
+}
