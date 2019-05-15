@@ -20,7 +20,8 @@ const express             = require('express'),
       samlp               = require('samlp'),
       Parser              = require('xmldom').DOMParser,
       SessionParticipants = require('samlp/lib/sessionParticipants'),
-      SimpleProfileMapper = require('./lib/simpleProfileMapper.js');
+      SimpleProfileMapper = require('./lib/simpleProfileMapper.js'),
+      url = require('url');
 
 /**
  * Globals
@@ -319,8 +320,7 @@ function processArgs(args, options) {
     .wrap(baseArgv.terminalWidth());
 }
 
-var isManaged = false;
-
+const managedDeviceStatus = {};
 function _runServer(argv) {
   const app = express();
   const httpServer = argv.https ?
@@ -404,6 +404,7 @@ function _runServer(argv) {
                               if(!audience) {
                                 audience = req.authnRequest.issuer;
                               }
+
                               return callback(null, (req.authnRequest && req.authnRequest.acsUrl) ?
                                 req.authnRequest.acsUrl :
                                 argv.acsUrl);
@@ -421,9 +422,11 @@ function _runServer(argv) {
                                   authnContextDeclEl.appendChild(declDoc.documentElement);
                                   // if(isManaged) {
                                   const fact = authnContextDeclEl.getElementsByTagName('Fact');
-                                  // console.log('Modify Authentication Context -  old value: '+fact[0].getAttribute('Value'));
-                                  fact[0].setAttribute('Value', isManaged);
-                                  console.log('Authentication Context modified: isManaged='+fact[0].getAttribute('Value'));
+                                  const hostname = url.parse(this.recipient).hostname;
+                                  // get managed status for the device
+                                  const isDeviceManaged = managedDeviceStatus[hostname] || false;
+                                  fact[0].setAttribute('Value', isDeviceManaged);
+                                  console.log(hostname + '-> Authentication Context: managed='+fact[0].getAttribute('Value'));
                                   // }
                                   const authnContextEl = assertionDom.getElementsByTagName('saml:AuthnContext')[0];
                                   authnContextEl.appendChild(authnContextDeclEl);
@@ -626,11 +629,16 @@ function _runServer(argv) {
   });
 
   app.get(['/managed'], (req, res) => {
-    console.log('IsManaged - Old Value:' + isManaged);
-    isManaged = req.query.enabled;
-    console.log('IsManaged - New Value:' + req.query.enabled);
-    res.status(200).send('isManaged='+isManaged);
-
+    if(!req.query.org) {
+      console.log('sending list of all managed devices');
+      res.status(200).send(managedDeviceStatus);
+    }else {
+      const org = req.query.org;
+      console.log('org='+org+ ' managed - Old Value:' + managedDeviceStatus[org]);
+      managedDeviceStatus[org] = req.query.enabled;
+      console.log('org='+org+ ' managed - New Value:' + managedDeviceStatus[org]);
+      res.status(200).send('server='+ org + ' managed='+managedDeviceStatus[org]);
+    }
   });
 
   app.get(['/', '/idp', IDP_PATHS.SSO], parseSamlRequest);
